@@ -20,7 +20,7 @@ set(config_module_list
 	drivers/boards/px4fmu-v2
 	drivers/rgbled
 	drivers/mpu6000
-	drivers/mpu9250
+	#drivers/mpu9250
 	drivers/lsm303d
 	drivers/l3gd20
 	drivers/hmc5883
@@ -58,6 +58,7 @@ set(config_module_list
 	#
 	# System commands
 	#
+	systemcmds/led_control
 	systemcmds/bl_update
 	systemcmds/config
 	#systemcmds/dumpfile
@@ -159,6 +160,13 @@ set(config_module_list
 	# had to add for cmake, not sure why wasn't in original config
 	platforms/common
 	platforms/nuttx/px4_layer
+
+	#
+	# DAMP apps
+	#
+	DAMP/main_motor
+	DAMP/calibrate_pot
+	DAMP/steering_motor
 
 	#
 	# OBC challenge

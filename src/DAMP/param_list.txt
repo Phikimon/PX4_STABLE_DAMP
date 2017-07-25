@@ -1,0 +1,27 @@
+// This file consists of defines which unwrap
+// in functions' definitions in common.cpp 
+// and in functions' declarations in common.h
+
+GET_PARAM(RC3_MIN,      throttle_min, float)
+GET_PARAM(RC3_MAX,      throttle_max, float)
+GET_PARAM(RC3_TRIM,     throttle_mid, float)
+
+GET_PARAM(RC4_MIN,           yaw_min, float)
+GET_PARAM(RC4_MAX,           yaw_max, float)
+GET_PARAM(RC4_TRIM,          yaw_mid, float)
+
+GET_PARAM(RC5_MIN,           rc5_min, float)
+GET_PARAM(RC5_MAX,           rc5_max, float)
+GET_PARAM(RC5_TRIM,          rc5_mid, float)
+
+GET_PARAM(RC6_MIN,           rc6_min, float)
+GET_PARAM(RC6_MAX,           rc6_max, float)
+GET_PARAM(RC6_TRIM,          rc6_mid, float)
+
+GET_PARAM(POT_MIN,           pot_min, float)
+GET_PARAM(POT_MAX,           pot_max, float)
+GET_PARAM(POT_TRIM,          pot_mid, float)
+
+GET_PARAM(PWM_MIN,           pwm_min, uint32_t)
+GET_PARAM(PWM_MAX,           pwm_max, uint32_t)
+GET_PARAM(PWM_DISARMED, pwm_disarmed, uint32_t)

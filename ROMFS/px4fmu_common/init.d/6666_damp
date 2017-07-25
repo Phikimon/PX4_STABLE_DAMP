@@ -1,0 +1,23 @@
+#!nsh
+#
+# @name Damp
+#
+# @type Rover
+# @class Rover
+
+# PWM default value for "disarmed" mode
+# this centers the steering and throttle, which means no motion
+# for a rover
+param set PWM_DISARMED 1
+
+# PWM range
+param set PWM_MIN 1
+param set PWM_MAX 2499
+
+# Maximum available rate. Greater rate => faster response
+param set PWM_RATE 400
+
+param set PWM_AUX_DISARMED 1
+param set PWM_AUX_MIN 1
+param set PWM_AUX_MAX 2499
+param set CBRK_IO_SAFETY 22027

@@ -84,7 +84,7 @@ __BEGIN_DECLS
 /**
  * Lowest minimum PWM in us
  */
-#define PWM_LOWEST_MIN 90
+#define PWM_LOWEST_MIN 1
 
 /**
  * Default value for a shutdown motor
@@ -104,7 +104,7 @@ __BEGIN_DECLS
 /**
  * Highest maximum PWM in us
  */
-#define PWM_HIGHEST_MAX 2150
+#define PWM_HIGHEST_MAX 2499
 
 /**
  * Default maximum PWM in us
@@ -363,7 +363,7 @@ __EXPORT extern int	up_pwm_servo_set_rate_group_update(unsigned group, unsigned 
 /**
  * Trigger all timer's channels in Oneshot mode to fire
  * the oneshot with updated values.
- * Nothing is none if not in oneshot mode.
+ * Nothing is done if not in oneshot mode.
  *
  */
 __EXPORT extern void up_pwm_update(void);

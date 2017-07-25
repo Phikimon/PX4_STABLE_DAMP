@@ -169,3 +169,32 @@ PARAM_DEFINE_FLOAT(PWM_AUX_TRIM5, 0);
  */
 PARAM_DEFINE_FLOAT(PWM_AUX_TRIM6, 0);
 
+/**
+ * Pot min value
+ *
+ * Min adc value when steering
+ *
+ * @group DAMP
+ * @unit adc_units
+ */
+PARAM_DEFINE_FLOAT(POT_MIN, 0);
+
+/**
+ * Pot max value
+ *
+ * Max adc value when steering
+ *
+ * @group DAMP
+ * @unit adc_units
+ */
+PARAM_DEFINE_FLOAT(POT_MAX, 0);
+
+/**
+ * Pot mid value
+ *
+ * Mid adc value when steering
+ *
+ * @group DAMP
+ * @unit adc_units
+ */
+PARAM_DEFINE_FLOAT(POT_TRIM, 0);

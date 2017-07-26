@@ -16,19 +16,31 @@
 
 extern "C"
 {
-    __EXPORT int main_motor_main     (int argc, char *argv[]);
+    __EXPORT int main_motor_main(int argc, char *argv[]);
 }
+
+enum main_motor_direction_t
+{
+    MMD_FORWARD = 0,
+    MMD_BACK    = 1,
+    MMD_DEFAULT
+};
 
 inline uint16_t throttle_input_rc_to_pwm(int input_rc_val);
 
 //This is compile-time constant
-const int THROTTLE_CHANNEL_NUMBER = 2;
-const int THROTTLE_PWM_PIN_NUMBER = 0;
+const int         THROTTLE_CHANNEL_NUMBER = 2;
+const int DIRECTION_SWITCH_CHANNEL_NUMBER = 6;
+const int         THROTTLE_PWM_PIN_NUMBER = 0;
+const int MOTOR_DIRECTION_GPIO_PIN_NUMBER = GPIO_GPIO2_OUTPUT;
 
 int main_motor_main(int argc, char *argv[])
 {
     static uint32_t pwm_disarmed = get_pwm_disarmed_param();
     PX4_INFO("PWM_DISARMED = %d", pwm_disarmed);
+
+    //Init GPIO pin
+    stm32_configgpio(MOTOR_DIRECTION_GPIO_PIN_NUMBER);
 
     //Subscribe on 'input_rc' topic
     int                 input_rc_sub_fd = orb_subscribe(ORB_ID(input_rc));
@@ -74,6 +86,10 @@ int main_motor_main(int argc, char *argv[])
 #ifndef MY_NDEBUG
                 PX4_INFO("Throttle:\t%d", raw.values[THROTTLE_CHANNEL_NUMBER]);
 #endif //~MY_NDEBUG
+                static float rc6_trim = get_rc6_mid_param();
+                main_motor_direction_t direction = (raw.values[DIRECTION_SWITCH_CHANNEL_NUMBER] > rc6_trim ?
+                                                    MMD_FORWARD :
+                                                    MMD_BACK);
                 uint16_t pwm_value = throttle_input_rc_to_pwm(raw.values[THROTTLE_CHANNEL_NUMBER]);
 #ifndef MY_NDEBUG
                 PX4_INFO("Published PWM value = %d\n", pwm_value);

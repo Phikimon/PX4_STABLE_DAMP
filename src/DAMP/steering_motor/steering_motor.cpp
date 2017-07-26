@@ -29,9 +29,10 @@
 //Mathew, pay attention!
 #define TODOTODO 1
 
-//Fundamental constants
 const int YAW_CHANNEL_NUMBER = 3;
 const int AUX_CHANNEL_NUMBER = 4;
+const int MOTOR_IN_GPIO_CW   = GPIO_GPIO0_OUTPUT;
+const int MOTOR_IN_GPIO_CCW  = GPIO_GPIO1_OUTPUT;
 
 //TODO: move to params
 const int STEER_PWM_CH = 1;
@@ -80,8 +81,8 @@ int steering_motor_main(int argc, char *argv[])
     input_rc_pollfd.events = POLLIN;
 
     //Init GPIO pins
-    stm32_configgpio(GPIO_GPIO0_OUTPUT); //< Motor IN CW
-    stm32_configgpio(GPIO_GPIO1_OUTPUT); //< Motor IN CCW
+    stm32_configgpio(MOTOR_IN_GPIO_CW);
+    stm32_configgpio(MOTOR_IN_GPIO_CCW);
 
     int adc_fd = open(ADC0_DEVICE_PATH, O_RDONLY);
     if (adc_fd < 0)
@@ -225,8 +226,8 @@ void transmit_to_driver(MotorMovement  motor_movement,
     {
         case MM_STOP:
         {
-            stm32_gpiowrite(GPIO_GPIO0_OUTPUT, false);
-            stm32_gpiowrite(GPIO_GPIO1_OUTPUT, false);
+            stm32_gpiowrite(MOTOR_IN_GPIO_CW, false);
+            stm32_gpiowrite(MOTOR_IN_GPIO_CCW, false);
         }; break;
         case MM_MOVE:
         {
@@ -234,13 +235,13 @@ void transmit_to_driver(MotorMovement  motor_movement,
             {
                 case MD_POSITIVE:
                 {
-                    stm32_gpiowrite(GPIO_GPIO0_OUTPUT, false);
-                    stm32_gpiowrite(GPIO_GPIO1_OUTPUT, true);
+                    stm32_gpiowrite(MOTOR_IN_GPIO_CW, false);
+                    stm32_gpiowrite(MOTOR_IN_GPIO_CCW, true);
                 }; break;
                 case MD_NEGATIVE:
                 {
-                    stm32_gpiowrite(GPIO_GPIO0_OUTPUT, true);
-                    stm32_gpiowrite(GPIO_GPIO1_OUTPUT, false);
+                    stm32_gpiowrite(MOTOR_IN_GPIO_CW, true);
+                    stm32_gpiowrite(MOTOR_IN_GPIO_CCW, false);
                 }; break;
                 case MD_DEFAULT:
                 {

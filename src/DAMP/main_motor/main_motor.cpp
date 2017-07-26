@@ -1,3 +1,4 @@
+//STD
 #include <px4_config.h>
 #include <px4_tasks.h>
 #include <px4_posix.h>
@@ -5,12 +6,20 @@
 #include <stdio.h>
 #include <poll.h>
 #include <string.h>
-#include <DAMP/common.h>
-
+//GPIO
+#include <drivers/boards/px4fmu-v2/board_config.h>
+#include <drivers/drv_gpio.h>
+#include "stm32.h"
+#include "board_config.h"
+#include <arch/board/board.h>
+//PWM
 #include <drivers/drv_pwm_output.h>
+//Topics
 #include <uORB/uORB.h>
 #include <uORB/topics/input_rc.h>
 #include <uORB/topics/output_pwm.h>
+//DAMP
+#include <DAMP/common.h>
 
 #define MY_NDEBUG
 
@@ -27,6 +36,7 @@ enum main_motor_direction_t
 };
 
 inline uint16_t throttle_input_rc_to_pwm(int input_rc_val);
+inline void     publish_pwm             (int pwm_fd, int pin_number, int value);
 
 //This is compile-time constant
 const int         THROTTLE_CHANNEL_NUMBER = 2;
@@ -58,16 +68,10 @@ int main_motor_main(int argc, char *argv[])
         return 1;
     }
 
-    { //< Brackets to incapsulate 'ret'
-        //Publish safe PWM value
-        int ret = px4_ioctl(output_pwm_fd,
-                            PWM_SERVO_SET(THROTTLE_PWM_PIN_NUMBER),
-                            pwm_disarmed);
-        if (ret != OK)
-        {
-            PX4_ERR("PWM_SERVO_SET(%d)", THROTTLE_PWM_PIN_NUMBER);
-            return 1; }
-    }
+    //Publish safe PWM value
+    publish_pwm(output_pwm_fd,
+                THROTTLE_PWM_PIN_NUMBER,
+                pwm_disarmed);
 
     int error_counter = 0;
     while (true)
@@ -83,40 +87,30 @@ int main_motor_main(int argc, char *argv[])
                 struct input_rc_s raw = {};
                 orb_copy(ORB_ID(input_rc), input_rc_sub_fd, &raw);
 
-#ifndef MY_NDEBUG
-                PX4_INFO("Throttle:\t%d", raw.values[THROTTLE_CHANNEL_NUMBER]);
-#endif //~MY_NDEBUG
                 static float rc6_trim = get_rc6_mid_param();
                 main_motor_direction_t direction = (raw.values[DIRECTION_SWITCH_CHANNEL_NUMBER] > rc6_trim ?
                                                     MMD_FORWARD :
                                                     MMD_BACK);
                 uint16_t pwm_value = throttle_input_rc_to_pwm(raw.values[THROTTLE_CHANNEL_NUMBER]);
 #ifndef MY_NDEBUG
-                PX4_INFO("Published PWM value = %d\n", pwm_value);
+                PX4_INFO("Throttle:\t%d", raw.values[THROTTLE_CHANNEL_NUMBER]);
+                PX4_INFO("Direction switch:\t%s", direction == MMD_FORWARD ?
+                                                  "MMD_FORWARD"            :
+                                                  "MMD_BACK"               );
+                PX4_INFO("Published PWM value =\t%d\n", pwm_value);
 #endif //~MY_NDEBUG
-                //Publish PWM value
-                int ret = px4_ioctl(output_pwm_fd,
-                                    PWM_SERVO_SET(THROTTLE_PWM_PIN_NUMBER),
-                                    pwm_value);
-                if (ret != OK)
-                {
-                    PX4_ERR("PWM_SERVO_SET(%d)", THROTTLE_PWM_PIN_NUMBER);
-                    return 1;
-                }
+                stm32_gpiowrite(MOTOR_DIRECTION_GPIO_PIN_NUMBER, direction);
+                publish_pwm(output_pwm_fd,
+                            THROTTLE_PWM_PIN_NUMBER,
+                            pwm_value);
             }
         } else
         {
             //On error occured
             //Publish safe PWM value
-            int ret = px4_ioctl(output_pwm_fd,
-                                PWM_SERVO_SET(THROTTLE_PWM_PIN_NUMBER),
-                                pwm_disarmed);
-            if (ret != OK)
-            {
-                PX4_ERR("PWM_SERVO_SET(%d)", THROTTLE_PWM_PIN_NUMBER);
-                return 1;
-            }
-
+            publish_pwm(output_pwm_fd,
+                        THROTTLE_PWM_PIN_NUMBER,
+                        pwm_disarmed);
             // Handle errors
             if (input_rc_poll_ret == 0)
             {
@@ -134,6 +128,18 @@ int main_motor_main(int argc, char *argv[])
         }
     }
     return OK;
+}
+
+void publish_pwm(int pwm_fd, int pin_number, int value)
+{
+    int ret = px4_ioctl(pwm_fd,
+                        PWM_SERVO_SET(pin_number),
+                        value);
+    if (ret != OK)
+    {
+        PX4_ERR("PWM_SERVO_SET(%d), abort.", pin_number);
+        exit(1);
+    }
 }
 
 uint16_t throttle_input_rc_to_pwm(int input_rc_val)

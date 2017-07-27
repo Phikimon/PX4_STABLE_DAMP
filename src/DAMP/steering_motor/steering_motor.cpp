@@ -31,7 +31,7 @@
 
 //Fundamental constants
 const int YAW_CHANNEL_NUMBER = 3;
-const int AUX_CHANNEL_NUMBER = 4;
+//const int AUX_CHANNEL_NUMBER = 4;
 
 //TODO: move to params
 const int STEER_PWM_CH = 1;
@@ -59,7 +59,7 @@ extern "C"
 //lessen number of calls
 inline void get_motor_movement_and_direction(int32_t actual_angle_perc,
                                              int32_t desired_angle_perc,
-                                             int32_t dead_zone,
+                                             int32_t dead_zone_perc,
                                              MotorMovement*  motor_movement,
                                              MotorDirection* motor_direction,
                                              float* motor_power_perc,
@@ -99,13 +99,13 @@ int steering_motor_main(int argc, char *argv[])
     }
 
     //pid init
-    pid_cont_t pid = {0, 7, 2, 0, 0.2f};
+    pid_cont_t pid = {0, get_prop_sens_param(), get_dif_sens_param(), 0, 0.2f};
 
     //Main cycle
     int error_counter = 0;
     while (true)
     {
-        //Get data from rc and adc
+        //Get data from rc
         int poll_ret = px4_poll(&input_rc_pollfd, 1, 1000);
 
         if (poll_ret > 0)
@@ -116,16 +116,16 @@ int steering_motor_main(int argc, char *argv[])
                 //Put data from topics into structures
                 struct input_rc_s input_rc_data = {};
                 orb_copy(ORB_ID(input_rc), input_rc_sub_fd, &input_rc_data);
-
+//TODO : change params vars to static after debug.
                 //Potentiometer angle
                 int current_angle_perc = adc_to_percents(get_6v6_adc_value(adc_fd));
-                int desired_angle_perc = yaw_to_percents(input_rc_data.values[YAW_CHANNEL_NUMBER]);
-                int dead_zone          = rc5_to_percents(input_rc_data.values[AUX_CHANNEL_NUMBER]);
+                int desired_angle_perc = yaw_to_percents(input_rc_data.values[YAW_CHANNEL_NUMBER]);  
+                int dead_zone_perc     = get_dead_zone_param();//rc5_to_percents(input_rc_data.values[AUX_CHANNEL_NUMBER]);
 
 #ifndef NDEBUG
-                PX4_INFO("Current angle = %d%%",     current_angle_perc);
                 PX4_INFO("Desired angle = %d%%",     desired_angle_perc);
-                PX4_INFO("Dead zone = %d%%",         dead_zone);
+                PX4_INFO("Current angle = %d%%",       current_angle_perc);
+                PX4_INFO("Dead zone = %d%%",         dead_zone_perc);
 #endif
                 //Decide if motor has to move and in which direction
                 enum MotorMovement  motor_movement  = MM_DEFAULT;
@@ -133,7 +133,7 @@ int steering_motor_main(int argc, char *argv[])
                 float motor_power_perc;
                 get_motor_movement_and_direction(current_angle_perc,
                                                  desired_angle_perc,
-                                                 dead_zone,
+                                                 dead_zone_perc,
                                                  &motor_movement,
                                                  &motor_direction,
                                                  &motor_power_perc,
@@ -194,23 +194,28 @@ int steering_motor_main(int argc, char *argv[])
 
 void get_motor_movement_and_direction(int32_t actual_angle_perc,
                                       int32_t desired_angle_perc,
-                                      int32_t dead_zone,
+                                      int32_t dead_zone_perc,
                                       MotorMovement*  motor_movement,
                                       MotorDirection* motor_direction,
                                       float* motor_power_perc,
                                       pid_cont_t* pid_var)
 {
-     *motor_power_perc = abs(pid_var->next(desired_angle_perc - actual_angle_perc));
-     *motor_power_perc = (*motor_power_perc > 100) ? 100 : *motor_power_perc;
+     int angle_error_perc = desired_angle_perc - actual_angle_perc;
+     *motor_power_perc    = abs(pid_var->next(angle_error_perc));
+     *motor_power_perc    = (*motor_power_perc > 100) ? 100 : *motor_power_perc;
 
-    if (abs(actual_angle_perc - desired_angle_perc) < dead_zone)
+#ifndef NDEBUG
+     PX4_INFO("Angle error = %d%%", angle_error_perc);
+#endif
+
+    if (abs(angle_error_perc) < dead_zone_perc)
     {
         *motor_movement  = MM_STOP;
         *motor_direction = MD_DEFAULT;
     } else
     {
         *motor_movement   = MM_MOVE;
-        *motor_direction = (actual_angle_perc - desired_angle_perc > 0) ?
+        *motor_direction = (angle_error_perc > 0) ?
                            MD_POSITIVE :
                            MD_NEGATIVE;
     }

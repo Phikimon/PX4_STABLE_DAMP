@@ -25,3 +25,9 @@ GET_PARAM(POT_TRIM,          pot_mid, float)
 GET_PARAM(PWM_MIN,           pwm_min, uint32_t)
 GET_PARAM(PWM_MAX,           pwm_max, uint32_t)
 GET_PARAM(PWM_DISARMED, pwm_disarmed, uint32_t)
+
+//steering
+
+GET_PARAM(PROP_SENS, prop_sens, float)
+GET_PARAM(DIF_SENS, dif_sens, float)
+GET_PARAM(DEAD_ZONE, dead_zone, float)

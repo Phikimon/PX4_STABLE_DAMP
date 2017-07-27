@@ -3,7 +3,7 @@ RC transmitter settings:
   * SWA -> Channel 5.
     Controls direction of the main motor. State *1* - forward, state *2* - back.
   * SWD -> Channel 6.
-    Controls break. State *1* - off, state *2* - on.
+    Controls brake. State *1* - off, state *2* - on.
 
 Pinout:
 

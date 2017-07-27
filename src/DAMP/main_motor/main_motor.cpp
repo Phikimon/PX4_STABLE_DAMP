@@ -38,9 +38,8 @@ enum main_motor_direction_t
 inline uint16_t throttle_input_rc_to_pwm(int input_rc_val);
 inline void     publish_pwm             (int pwm_fd, int pin_number, int value);
 
-//This is compile-time constant
-const int         THROTTLE_CHANNEL_NUMBER = 2;
-const int DIRECTION_SWITCH_CHANNEL_NUMBER = 6;
+const int         THROTTLE_CHANNEL_NUMBER = 2; //< value = real number - 1
+const int DIRECTION_SWITCH_CHANNEL_NUMBER = 4; //< (because numeraion is from 0)
 const int         THROTTLE_PWM_PIN_NUMBER = 0;
 const int MOTOR_DIRECTION_GPIO_PIN_NUMBER = GPIO_GPIO2_OUTPUT;
 

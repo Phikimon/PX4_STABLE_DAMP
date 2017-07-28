@@ -33,7 +33,6 @@ private:
     double sens_dif_;
     double err_val_prev_;
     double upd_period_;
-
 };
 
 #endif // PID_CONT_H

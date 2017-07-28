@@ -42,4 +42,6 @@ uint32_t get_uint32_t_param(const char* param_name);
     }                                                   \
 }
 
+//-----------------------------------------------------------------------------------
+
 #endif //~COMMON_H_INCLUDED

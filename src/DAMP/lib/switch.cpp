@@ -19,7 +19,7 @@ switch_state_t get_inverted_switch_state(switch_state_t s)
     return ((s == SS_ON) ? SS_OFF : SS_ON);
 }
 
-switch_state_t get_switch_state(int input_rc_sub_fd, int channel_num)
+switch_state_t poll_switch_state(int input_rc_sub_fd, int channel_num)
 {
     px4_pollfd_struct_t input_rc_pollfd = {};
     input_rc_pollfd.fd     = input_rc_sub_fd,
@@ -61,3 +61,13 @@ switch_state_t get_switch_state(int input_rc_sub_fd, int channel_num)
            SS_OFF;
 }
 
+switch_state_t get_switch_state(int rc_data, int channel_num)
+{
+    char param_name[sizeof("RCx_TRIM")] = {};
+    sprintf(param_name, "RC%d_TRIM", channel_num);
+    static float rc_trim = get_float_param(param_name);
+
+    return (rc_data > rc_trim) ?
+           SS_ON               :
+           SS_OFF;
+}

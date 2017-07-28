@@ -21,6 +21,18 @@ void set_##VAR_NAME(VAR_TYPE val)    \
 
 #undef SET_PROP
 
+#define GET_PROP(VAR_TYPE, VAR_NAME)   \
+VAR_TYPE get_##VAR_NAME(void)          \
+{                                      \
+    return VAR_NAME##_;                \
+}
+
+    GET_PROP(double, sens_bias)
+    GET_PROP(double, sens_prop)
+    GET_PROP(double, sens_dif)
+
+#undef GET_PROP
+
     double next(double err_val);
 
     double next(double err_val,

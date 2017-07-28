@@ -26,26 +26,25 @@
 #include <drivers/drv_pwm_output.h>
 
 #undef NDEBUG
-
-//Mathew, pay attention!
-#define TODOTODO 1
+//#define SAFE_STEERING
 
 const int YAW_CHANNEL_NUMBER = 3;
-const int AUX_CHANNEL_NUMBER = 4;
+const int MOTOR_IN_PWM_PIN = 1;
 const int MOTOR_IN_GPIO_CW   = GPIO_GPIO0_OUTPUT;
 const int MOTOR_IN_GPIO_CCW  = GPIO_GPIO1_OUTPUT;
+//PID constants
+const float SENS_BIAS     = 0;
+const float BIAS          = 0;
+const float TIMESTAMP_AVG = 0.2f;
 
-//TODO: move to params
-const int STEER_PWM_CH = 1;
-
-enum MotorDirection
+enum motor_direction_t
 {
     MD_POSITIVE = 0, //Nevermind clockwise-ness
     MD_NEGATIVE = 1,
     MD_DEFAULT
 };
 
-enum MotorMovement
+enum motor_movement_t
 {
     MM_STOP = 0,
     MM_MOVE = 1,
@@ -57,18 +56,16 @@ extern "C"
     __EXPORT int steering_motor_main(int argc, char *argv[]);
 }
 
-//Inline is used for the purpose of
-//lessen number of calls
 inline void get_motor_movement_and_direction(int32_t actual_angle_perc,
                                              int32_t desired_angle_perc,
-                                             int32_t dead_zone,
-                                             MotorMovement*  motor_movement,
-                                             MotorDirection* motor_direction,
+                                             int32_t dead_zone_perc,
+                                             motor_movement_t*  motor_movement,
+                                             motor_direction_t* motor_direction,
                                              float* motor_power_perc,
                                              pid_cont_t* pid_var);
 
-inline void transmit_to_driver(MotorMovement  motor_movement,
-                               MotorDirection motor_direction,
+inline void transmit_to_driver(motor_movement_t  motor_movement,
+                               motor_direction_t motor_direction,
                                float motor_power_perc,
                                int output_pwm_fd);
 
@@ -101,7 +98,11 @@ int steering_motor_main(int argc, char *argv[])
     }
 
     //pid init
-    pid_cont_t pid = {0, 7, 2, 0, 0.2f};
+    pid_cont_t pid = {SENS_BIAS,
+                      get_float_param("PROP_SENS"),
+                      get_float_param("DIF_SENS"),
+                      BIAS,
+                      TIMESTAMP_AVG};
 
     //Main cycle
     int error_counter = 0;
@@ -120,7 +121,8 @@ int steering_motor_main(int argc, char *argv[])
                 orb_copy(ORB_ID(input_rc), input_rc_sub_fd, &input_rc_data);
 
                 //Potentiometer angle
-                int current_angle_perc = float_value_to_percents(get_6v6_adc_value(adc_fd),
+                float current_adc_value = get_6v6_adc_value(adc_fd);
+                int current_angle_perc = float_value_to_percents(current_adc_value,
                                                                  "POT_MIN",
                                                                  "POT_MAX",
                                                                  "POT_TRIM");
@@ -142,24 +144,25 @@ int steering_motor_main(int argc, char *argv[])
                                                                  yaw_min_param_name,
                                                                  yaw_max_param_name,
                                                                  yaw_ref_param_name);
-
-                int dead_zone = float_value_to_percents(input_rc_data.values[AUX_CHANNEL_NUMBER],
-                                                        "RC5_MIN",
-                                                        "RC5_MAX",
-                                                        "RC5_MIN"); //TODO
-
+                int32_t dead_zone_perc = (int32_t)get_float_param("DEAD_ZONE");
 #ifndef NDEBUG
-                PX4_INFO("Current angle = %d%%",     current_angle_perc);
-                PX4_INFO("Desired angle = %d%%",     desired_angle_perc);
-                PX4_INFO("Dead zone = %d%%",         dead_zone);
+                pid.set_sens_prop(get_float_param("PROP_SENS"));
+                pid.set_sens_dif(get_float_param("DIF_SENS"));
+
+                PX4_INFO("Current angle = %d%%",   current_angle_perc);
+                PX4_INFO("Desired angle = %d%%",   desired_angle_perc);
+                PX4_INFO("Angle difference= %d%%", desired_angle_perc - current_angle_perc);
+                PX4_INFO("Dead zone = %d%%",       dead_zone_perc);
+                PX4_INFO("PID_prop = %d",          pid.get_sens_prop());
+                PX4_INFO("PID_diff = %d",          pid.get_sens_dif());
 #endif
                 //Decide if motor has to move and in which direction
-                enum MotorMovement  motor_movement  = MM_DEFAULT;
-                enum MotorDirection motor_direction = MD_DEFAULT;
-                float motor_power_perc;
+                enum motor_movement_t  motor_movement   = MM_DEFAULT;
+                enum motor_direction_t motor_direction  = MD_DEFAULT;
+                float               motor_power_perc = 0;
                 get_motor_movement_and_direction(current_angle_perc,
                                                  desired_angle_perc,
-                                                 dead_zone,
+                                                 dead_zone_perc,
                                                  &motor_movement,
                                                  &motor_direction,
                                                  &motor_power_perc,
@@ -196,11 +199,36 @@ int steering_motor_main(int argc, char *argv[])
                     }; break;
                 };
 #endif
+#ifdef SAFE_STEERING
+                { //< Brackets to incapsulate
+                    float pot_max = get_float_param("POT_MAX");
+                    float pot_min = get_float_param("POT_MIN");
+                    float pot_rng = abs(pot_max - pot_min);
+                    const pot_gap = pot_rng * 0.05;
+                    if ( (abs(current_adc_value - pot_max) < pot_gap) &&
+                         (motor_direction == MD_POSITIVE)             &&
+                         (motor_movement  == MM_MOVE)                 )
+                    {
+                        PX4_INFO("MAX LIMIT REACHED! STOP.");
+                        motor_movement  = MM_STOP;
+                        motor_direction = MD_DEFAULT;
+                    }
+
+                    if ( (abs(current_adc_value - pot_min) < pot_gap) &&
+                         (motor_direction == MD_NEGATIVE)             &&
+                         (motor_movement  == MM_MOVE)                 )
+                    {
+                        PX4_INFO("MIN LIMIT REACHED! STOP.");
+                        motor_movement  = MM_STOP;
+                        motor_direction = MD_DEFAULT;
+                    }
+                }
+#endif //SAFE_STEERING
                 //Transmit this informaion to steering motor driver
                 //Motor PWM pin is considered to be connected to the +5V
                 transmit_to_driver(motor_movement,
                                    motor_direction,
-                                   TODOTODO,
+                                   motor_power_perc,
                                    output_pwm_fd);
             }
         } else if (poll_ret == 0)
@@ -220,30 +248,37 @@ int steering_motor_main(int argc, char *argv[])
 
 void get_motor_movement_and_direction(int32_t actual_angle_perc,
                                       int32_t desired_angle_perc,
-                                      int32_t dead_zone,
-                                      MotorMovement*  motor_movement,
-                                      MotorDirection* motor_direction,
+                                      int32_t dead_zone_perc,
+                                      motor_movement_t*  motor_movement,
+                                      motor_direction_t* motor_direction,
                                       float* motor_power_perc,
                                       pid_cont_t* pid_var)
 {
-     *motor_power_perc = abs(pid_var->next(desired_angle_perc - actual_angle_perc));
-     *motor_power_perc = (*motor_power_perc > 100) ? 100 : *motor_power_perc;
+    const int PERCENTAGE_MAX  = 100;
+    int angle_error_perc = desired_angle_perc - actual_angle_perc;
+    *motor_power_perc    = abs(pid_var->next(angle_error_perc));
+#ifndef NDEBUG
+    PX4_INFO("Motor power = %f", (double)*motor_power_perc);
+#endif //~NDEBUG
+    *motor_power_perc    = (*motor_power_perc > PERCENTAGE_MAX) ?
+                           PERCENTAGE_MAX :
+                           *motor_power_perc;
 
-    if (abs(actual_angle_perc - desired_angle_perc) < dead_zone)
+    if (abs(angle_error_perc) < dead_zone_perc)
     {
         *motor_movement  = MM_STOP;
         *motor_direction = MD_DEFAULT;
     } else
     {
         *motor_movement   = MM_MOVE;
-        *motor_direction = (actual_angle_perc - desired_angle_perc > 0) ?
+        *motor_direction = (angle_error_perc > 0) ?
                            MD_POSITIVE :
                            MD_NEGATIVE;
     }
 }
 
-void transmit_to_driver(MotorMovement  motor_movement,
-                        MotorDirection motor_direction,
+void transmit_to_driver(motor_movement_t  motor_movement,
+                        motor_direction_t motor_direction,
                         float motor_power_perc,
                         int output_pwm_fd)
 {
@@ -251,8 +286,8 @@ void transmit_to_driver(MotorMovement  motor_movement,
     {
         case MM_STOP:
         {
-            stm32_gpiowrite(MOTOR_IN_GPIO_CW, false);
-            stm32_gpiowrite(MOTOR_IN_GPIO_CCW, false);
+            stm32_gpiowrite(MOTOR_IN_GPIO_CW,  true);
+            stm32_gpiowrite(MOTOR_IN_GPIO_CCW, true);
         }; break;
         case MM_MOVE:
         {
@@ -284,10 +319,10 @@ void transmit_to_driver(MotorMovement  motor_movement,
         }; break;
     }
     int ret = px4_ioctl(output_pwm_fd,
-                        PWM_SERVO_SET(STEER_PWM_CH),
+                        PWM_SERVO_SET(MOTOR_IN_PWM_PIN),
                         perc_to_pwm_val(motor_power_perc));
     if (ret != OK)
     {
-        PX4_ERR("PWM_SET(%d)", STEER_PWM_CH);
+        PX4_ERR("PWM_SET(%d)", MOTOR_IN_PWM_PIN);
     }
 }

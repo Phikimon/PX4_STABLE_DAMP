@@ -3,7 +3,7 @@
 
 enum switch_state_t
 {
-    SS_ON = 0,
+    SS_ON  = 0,
     SS_OFF = 1
 };
 

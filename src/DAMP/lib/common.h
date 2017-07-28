@@ -28,4 +28,18 @@ uint32_t get_uint32_t_param(const char* param_name);
 }
 #endif //__cplusplus
 
-#endif
+//-----------------------------------------------------------------------------------
+
+#define PX4_DEBUG_INFO(...) PX4_INFO(__VA_ARGS__)
+
+//-----------------------------------------------------------------------------------
+
+#define assert_ptr(PTR_NAME)                            \
+{                                                       \
+    if (PTR_NAME == NULL)                               \
+    {                                                   \
+        PX4_ERR("Nullptr "#PTR_NAME" in %s", __func__); \
+    }                                                   \
+}
+
+#endif //~COMMON_H_INCLUDED

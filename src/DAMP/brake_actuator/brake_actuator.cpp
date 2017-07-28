@@ -14,25 +14,26 @@
 #include <arch/board/board.h>
 //PWM
 #include <drivers/drv_pwm_output.h>
-//Topics
+//TOPICS
 #include <uORB/uORB.h>
 #include <uORB/topics/input_rc.h>
 #include <uORB/topics/output_pwm.h>
 //DAMP
-#include <DAMP/common.h>
+#include <DAMP/lib/common.h>
+#include <DAMP/lib/switch.h>
 
 #define MY_NDEBUG
 
 extern "C"
 {
-    __EXPORT int brake_acturator_main(int argc, char *argv[]);
+    __EXPORT int brake_actuator_main(int argc, char *argv[]);
 }
 
 //This is compile-time constant
 const int BRAKE_SWITCH_CHANNEL_NUMBER = 5; //< value = real number - 1
                                            //< (because numeraion is from 0)
 
-int brake_acturator_main(int argc, char *argv[])
+int brake_actuator_main(int argc, char *argv[])
 {
     return 0;
 }

@@ -5,7 +5,7 @@ px4_add_module(
 	SRCS
 		steering_motor.cpp
 		../pid_cont/pid_cont.cpp
-		../common.cpp
+		../lib/common.cpp
 	DEPENDS
 		platforms__common
 	)

@@ -4,7 +4,7 @@ px4_add_module(
 	STACK_MAIN 2000
 	SRCS
 		main_motor.cpp
-		../common.cpp
+		../lib/common.cpp
 	DEPENDS
 		platforms__common
 	)

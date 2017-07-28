@@ -4,7 +4,8 @@ px4_add_module(
 	STACK_MAIN 2000
 	SRCS
 		calibrate_pot.cpp
-		../common.cpp
+		../lib/common.cpp
+		../lib/switch.cpp
 	DEPENDS
 		platforms__common
 	)

@@ -1,4 +1,4 @@
-#include <drivers/drv_adc.h>
+//STD
 #include <px4_config.h>
 #include <px4_tasks.h>
 #include <px4_posix.h>
@@ -6,23 +6,24 @@
 #include <stdio.h>
 #include <poll.h>
 #include <string.h>
-#include <DAMP/common.h>
-
+#include <errno.h>
+//DAMP
+#include <DAMP/lib/common.h>
+#include <DAMP/pid_cont/pid_cont.h>
+//GPIO
+#include <drivers/boards/px4fmu-v2/board_config.h>
+#include <drivers/drv_gpio.h>
+#include "stm32.h"
+#include "board_config.h"
+#include <arch/board/board.h>
+//TOPICS(ADC+RC+PWM)
 #include <uORB/uORB.h>
 #include <uORB/topics/adc_report.h>
 #include <uORB/topics/input_rc.h>
 #include <uORB/topics/output_pwm.h>
-#include <drivers/boards/px4fmu-v2/board_config.h>
-#include <drivers/drv_gpio.h>
-#include <errno.h>
+#include <drivers/drv_adc.h>
 #include <stm32_adc.h>
-
-#include "stm32.h"
-#include "board_config.h"
-#include <arch/board/board.h>
 #include <drivers/drv_pwm_output.h>
-
-#include <DAMP/pid_cont/pid_cont.h>
 
 #undef NDEBUG
 
@@ -119,9 +120,33 @@ int steering_motor_main(int argc, char *argv[])
                 orb_copy(ORB_ID(input_rc), input_rc_sub_fd, &input_rc_data);
 
                 //Potentiometer angle
-                int current_angle_perc = adc_to_percents(get_6v6_adc_value(adc_fd));
-                int desired_angle_perc = yaw_to_percents(input_rc_data.values[YAW_CHANNEL_NUMBER]);
-                int dead_zone          = rc5_to_percents(input_rc_data.values[AUX_CHANNEL_NUMBER]);
+                int current_angle_perc = float_value_to_percents(get_6v6_adc_value(adc_fd),
+                                                                 "POT_MIN",
+                                                                 "POT_MAX",
+                                                                 "POT_TRIM");
+
+
+                float yaw_value = input_rc_data.values[YAW_CHANNEL_NUMBER];
+                static char yaw_min_param_name[sizeof("RCx_MIN")] = {};
+                static char yaw_max_param_name[sizeof("RCx_MAX")] = {};
+                static char yaw_ref_param_name[sizeof("RCx_TRIM")] = {};
+                static bool flag = true;
+                if (flag)
+                {                                         // Numeration from 1  V
+                    sprintf(yaw_min_param_name, "RC%d_MIN",  YAW_CHANNEL_NUMBER + 1);
+                    sprintf(yaw_max_param_name, "RC%d_MAX",  YAW_CHANNEL_NUMBER + 1);
+                    sprintf(yaw_ref_param_name, "RC%d_TRIM", YAW_CHANNEL_NUMBER + 1);
+                    flag = false;
+                }
+                int desired_angle_perc = float_value_to_percents(yaw_value,
+                                                                 yaw_min_param_name,
+                                                                 yaw_max_param_name,
+                                                                 yaw_ref_param_name);
+
+                int dead_zone = float_value_to_percents(input_rc_data.values[AUX_CHANNEL_NUMBER],
+                                                        "RC5_MIN",
+                                                        "RC5_MAX",
+                                                        "RC5_MIN"); //TODO
 
 #ifndef NDEBUG
                 PX4_INFO("Current angle = %d%%",     current_angle_perc);

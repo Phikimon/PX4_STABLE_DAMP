@@ -167,6 +167,7 @@ set(config_module_list
 	DAMP/main_motor
 	DAMP/calibrate_pot
 	DAMP/steering_motor
+	DAMP/brake_actuator
 
 	#
 	# OBC challenge

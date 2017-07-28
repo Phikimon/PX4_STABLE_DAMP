@@ -19,7 +19,7 @@
 #include <uORB/topics/input_rc.h>
 #include <uORB/topics/output_pwm.h>
 //DAMP
-#include <DAMP/common.h>
+#include <DAMP/lib/common.h>
 
 #define MY_NDEBUG
 
@@ -45,7 +45,7 @@ const int MOTOR_DIRECTION_GPIO_PIN_NUMBER = GPIO_GPIO2_OUTPUT;
 
 int main_motor_main(int argc, char *argv[])
 {
-    static uint32_t pwm_disarmed = get_pwm_disarmed_param();
+    static uint32_t pwm_disarmed = get_uint32_t_param("PWM_DISARMED");
     PX4_INFO("PWM_DISARMED = %d", pwm_disarmed);
 
     //Init GPIO pin
@@ -86,7 +86,7 @@ int main_motor_main(int argc, char *argv[])
                 struct input_rc_s raw = {};
                 orb_copy(ORB_ID(input_rc), input_rc_sub_fd, &raw);
 
-                static float rc6_trim = get_rc6_mid_param();
+                static float rc6_trim = get_float_param("RC6_TRIM");
                 main_motor_direction_t direction = (raw.values[DIRECTION_SWITCH_CHANNEL_NUMBER] > rc6_trim ?
                                                     MMD_FORWARD :
                                                     MMD_BACK);
@@ -141,30 +141,22 @@ void publish_pwm(int pwm_fd, int pin_number, int value)
     }
 }
 
-uint16_t throttle_input_rc_to_pwm(int input_rc_val)
+uint16_t throttle_input_rc_to_pwm(int throttle_val)
 {
-    static uint32_t pwm_min      = get_pwm_min_param();
-    static uint32_t pwm_max      = get_pwm_max_param();
-    static float    throttle_min = get_throttle_min_param();
-    static float    throttle_max = get_throttle_max_param();
-    static bool     firstCall    = true;
-    if (firstCall)
-    {
-        PX4_INFO("PWM_MIN = %d",      pwm_min);
-        PX4_INFO("PWM_MAX = %d",      pwm_max);
-        PX4_INFO("THROTTLE_MIN = %d", (uint32_t)throttle_min);
-        PX4_INFO("THROTTLE_MAX = %d", (uint32_t)throttle_max);
-        firstCall = false;
+    static char rc_min_param_name[sizeof("RCx_MIN")] = {};
+    static char rc_max_param_name[sizeof("RCx_MAX")] = {};
+    static bool flag = true;
+    if (flag)
+    {                                              // Numeration from 1  V
+        sprintf(rc_min_param_name, "RC%d_MIN", THROTTLE_CHANNEL_NUMBER + 1);
+        sprintf(rc_max_param_name, "RC%d_MAX", THROTTLE_CHANNEL_NUMBER + 1);
+        flag = false;
     }
 
-    //Rescale THROTTLE_MIN:THROTTLE_MAX -> 0:1
-    float pwm_duty = (input_rc_val - throttle_min) /
-                     (throttle_max - throttle_min);
+    int duty_perc = float_value_to_percents(throttle_val,
+                                            rc_min_param_name,
+                                            rc_max_param_name,
+                                            rc_min_param_name);
 
-    // Rescale 0:1 -> PWM_MIN:PWM_MAX
-    uint16_t pwm_value = pwm_duty * (pwm_max - pwm_min) + pwm_min;
-    // Handle if duty is greater than 1 or less than 0
-    pwm_value = (pwm_value > pwm_max) ? pwm_max : pwm_value;
-    pwm_value = (pwm_value < pwm_min) ? pwm_min : pwm_value;
-    return pwm_value;
+    return perc_to_pwm_val(duty_perc);
 }

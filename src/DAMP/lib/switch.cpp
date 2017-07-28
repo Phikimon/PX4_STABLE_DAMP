@@ -51,14 +51,7 @@ switch_state_t poll_switch_state(int input_rc_sub_fd, int channel_num)
             }
         }
     }
-
-    char param_name[sizeof("RCx_TRIM")] = {};
-    sprintf(param_name, "RC%d_TRIM", channel_num);
-    static float rc_trim = get_float_param(param_name);
-
-    return (raw.values[channel_num] > rc_trim) ?
-           SS_ON                               :
-           SS_OFF;
+    return get_switch_state(raw.values[channel_num], channel_num);
 }
 
 switch_state_t get_switch_state(int rc_data, int channel_num)

@@ -48,41 +48,42 @@ int calibrate_pot_main(int argc, char *argv[])
 #undef FIND_PARAM
 
     //Subscribe on rc data
-    int fd = orb_subscribe(ORB_ID(input_rc));
-    orb_set_interval(fd, 200);
+    int input_rc_fd = orb_subscribe(ORB_ID(input_rc));
+    orb_set_interval(input_rc_fd, 200);
 
     //Subscribe on adc data
-    int adc_fd = open(ADC0_DEVICE_PATH, O_RDONLY);
-    if (adc_fd < 0) {
+    int adc_input_rc_fd = open(ADC0_DEVICE_PATH, O_RDONLY);
+    if (adc_input_rc_fd < 0) {
         PX4_ERR("Can't open ADC device");
         exit(1);
     }
 
     //Calibrate
-    enum switch_state_t current_state = poll_switch_state(fd, AUX_CHANNEL_NUMBER);
+    enum switch_state_t current_state = poll_switch_state(input_rc_fd, AUX_CHANNEL_NUMBER);
     PX4_INFO("Change SWD switch state to start POT calibration");
-    while (poll_switch_state(fd, AUX_CHANNEL_NUMBER) != get_inverted_switch_state(current_state));
+    while (poll_switch_state(input_rc_fd, AUX_CHANNEL_NUMBER) != get_inverted_switch_state(current_state));
     current_state = get_inverted_switch_state(current_state);
 
     PX4_INFO("Turn left and change switch state");
-    while (poll_switch_state(fd, AUX_CHANNEL_NUMBER) != get_inverted_switch_state(current_state));
+    while (poll_switch_state(input_rc_fd, AUX_CHANNEL_NUMBER) != get_inverted_switch_state(current_state));
     current_state = get_inverted_switch_state(current_state);
-    float pot_limit_1 = get_6v6_adc_value(adc_fd);
+    float pot_limit_1 = get_6v6_adc_value(adc_input_rc_fd);
     PX4_INFO("First limit value = %f", (double)pot_limit_1);
 
     PX4_INFO("Turn right and change switch state");
-    while (poll_switch_state(fd, AUX_CHANNEL_NUMBER) != get_inverted_switch_state(current_state));
+    while (poll_switch_state(input_rc_fd, AUX_CHANNEL_NUMBER) != get_inverted_switch_state(current_state));
     current_state = get_inverted_switch_state(current_state);
-    float pot_limit_2 = get_6v6_adc_value(adc_fd);
+    float pot_limit_2 = get_6v6_adc_value(adc_input_rc_fd);
     PX4_INFO("Second limit value = %f", (double)pot_limit_2);
 
     PX4_INFO("Put wheels straight and change switch state");
-    while (poll_switch_state(fd, AUX_CHANNEL_NUMBER) != get_inverted_switch_state(current_state));
+    while (poll_switch_state(input_rc_fd, AUX_CHANNEL_NUMBER) != get_inverted_switch_state(current_state));
     current_state = get_inverted_switch_state(current_state);
-    float pot_trim = get_6v6_adc_value(adc_fd);
+    float pot_trim = get_6v6_adc_value(adc_input_rc_fd);
     PX4_INFO("Trim value = %f", (double)pot_trim);
-
-    PX4_INFO("Calibration finished!");
+    //unsubscribe
+    close(adc_input_rc_fd);
+    close(input_rc_fd);
 
     float pot_max = (pot_limit_1 > pot_limit_2) ? pot_limit_1 : pot_limit_2;
     float pot_min = (pot_limit_1 > pot_limit_2) ? pot_limit_2 : pot_limit_1;
@@ -99,6 +100,8 @@ int calibrate_pot_main(int argc, char *argv[])
     SET_PARAM(params.pot_trim_, pot_trim)
 
 #undef SET_PARAM
+
+        PX4_INFO("Calibration finished!");
 
     return OK;
 }
